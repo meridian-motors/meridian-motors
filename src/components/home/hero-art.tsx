@@ -41,7 +41,7 @@ export function HeroArt({ className }: { className?: string }) {
           <circle cx={cx} cy="372" r="8" fill="#A88C63" fillOpacity="0.8" />
           {Array.from({ length: 10 }).map((_, i) => {
             const a = (i * Math.PI) / 5;
-            return <path key={i} d={`M${cx + Math.cos(a) * 12} ${372 + Math.sin(a) * 12}L${cx + Math.cos(a) * 38} ${372 + Math.sin(a) * 38}`} stroke="#B7BBC0" strokeOpacity="0.35" />;
+            return <path key={i} d={`M${(cx + Math.cos(a) * 12).toFixed(2)} ${(372 + Math.sin(a) * 12).toFixed(2)}L${(cx + Math.cos(a) * 38).toFixed(2)} ${(372 + Math.sin(a) * 38).toFixed(2)}`} stroke="#B7BBC0" strokeOpacity="0.35" />;
           })}
         </g>
       ))}

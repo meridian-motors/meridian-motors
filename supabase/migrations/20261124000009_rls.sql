@@ -53,11 +53,18 @@ create policy settings_admin_write on public.platform_settings for all to authen
 -- ---------------------------------------------------------------------------
 -- Vehicles (private records — public reads go through public_listings)
 -- ---------------------------------------------------------------------------
-create policy vehicles_select on public.vehicles for select to authenticated using (public.can_manage_vehicle(id));
+-- Ownership is checked against the row's own columns (not via a lookup function)
+-- so that INSERT ... RETURNING can see the newly created row.
+create policy vehicles_select on public.vehicles for select to authenticated
+  using (owner_id = public.current_seller_id() or public.is_staff()
+         or (dealership_id is not null and public.is_dealership_member(dealership_id)));
 create policy vehicles_insert_owner on public.vehicles for insert to authenticated
   with check (owner_id = public.current_seller_id() or public.is_staff());
 create policy vehicles_update on public.vehicles for update to authenticated
-  using (public.can_manage_vehicle(id)) with check (public.can_manage_vehicle(id));
+  using (owner_id = public.current_seller_id() or public.is_staff()
+         or (dealership_id is not null and public.is_dealership_member(dealership_id)))
+  with check (owner_id = public.current_seller_id() or public.is_staff()
+         or (dealership_id is not null and public.is_dealership_member(dealership_id)));
 create policy vehicles_delete_draft on public.vehicles for delete to authenticated
   using (public.is_vehicle_owner(id) and vehicle_status = 'draft');
 

@@ -1,12 +1,14 @@
 import type { NextConfig } from "next";
 
-const supabaseHost = (() => {
+const supabaseUrl = (() => {
   try {
-    return process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname : undefined;
+    return process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL) : undefined;
   } catch {
     return undefined;
   }
 })();
+// Local Supabase (127.0.0.1 / localhost) cannot be fetched by the image optimiser.
+const isLocalSupabase = !!supabaseUrl && ["127.0.0.1", "localhost"].includes(supabaseUrl.hostname);
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -20,8 +22,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
-    remotePatterns: supabaseHost
-      ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
+    unoptimized: isLocalSupabase,
+    remotePatterns: supabaseUrl
+      ? [{ protocol: supabaseUrl.protocol.replace(":", "") as "http" | "https", hostname: supabaseUrl.hostname, port: supabaseUrl.port, pathname: "/storage/v1/object/public/**" }]
       : [],
   },
   experimental: {
