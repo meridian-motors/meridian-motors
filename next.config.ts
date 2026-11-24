@@ -1,8 +1,17 @@
 import type { NextConfig } from "next";
 
+// Accept both naming schemes the Vercel ↔ Supabase integration may use
+// (legacy anon/service_role keys and the newer publishable/secret keys).
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+const SUPABASE_PUBLIC_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "");
+
 const supabaseUrl = (() => {
   try {
-    return process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL) : undefined;
+    return SUPABASE_URL ? new URL(SUPABASE_URL) : undefined;
   } catch {
     return undefined;
   }
@@ -20,6 +29,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Public values only (URL and publishable/anon key) — inlined at build time.
+  env: { MM_SUPABASE_URL: SUPABASE_URL, MM_SUPABASE_PUBLIC_KEY: SUPABASE_PUBLIC_KEY, MM_SITE_URL: SITE_URL },
   images: {
     formats: ["image/avif", "image/webp"],
     unoptimized: isLocalSupabase,

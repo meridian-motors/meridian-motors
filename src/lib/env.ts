@@ -8,10 +8,12 @@ const read = (key: string) => {
   return v && v.trim() !== "" ? v.trim() : undefined;
 };
 
+// MM_* values are resolved in next.config.ts from whichever variable names the
+// hosting platform provides, and inlined at build time.
 export const publicEnv = {
-  siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, ""),
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+  siteUrl: (process.env.MM_SITE_URL || "http://localhost:3000").replace(/\/$/, ""),
+  supabaseUrl: process.env.MM_SUPABASE_URL || "",
+  supabaseAnonKey: process.env.MM_SUPABASE_PUBLIC_KEY || "",
   sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN || "",
 };
 
@@ -19,7 +21,7 @@ export const isSupabaseConfigured = Boolean(publicEnv.supabaseUrl && publicEnv.s
 
 export function serverEnv() {
   return {
-    supabaseServiceRoleKey: read("SUPABASE_SERVICE_ROLE_KEY"),
+    supabaseServiceRoleKey: read("SUPABASE_SERVICE_ROLE_KEY") ?? read("SUPABASE_SECRET_KEY"),
     anthropicApiKey: read("ANTHROPIC_API_KEY"),
     anthropicModel: read("ANTHROPIC_MODEL") ?? "claude-opus-5-5",
     stripeSecretKey: read("STRIPE_SECRET_KEY"),

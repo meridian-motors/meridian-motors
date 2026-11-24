@@ -61,4 +61,4 @@ if (!url) {
   await client.end();
   console.log("[migrate] database up to date.");
 }
-execSync("next build", { stdio: "inherit" });
+execSync("npx --no-install next build", { stdio: "inherit" });

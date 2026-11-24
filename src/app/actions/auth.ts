@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loginSchema, registerSchema, emailSchema, passwordSchema } from "@/lib/validation/public";
 import { fail, ok, zodFieldErrors, type ActionResult } from "@/lib/action-result";
-import { publicEnv } from "@/lib/env";
+import { publicEnv, isSupabaseConfigured } from "@/lib/env";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { notify } from "@/lib/notifications";
 
@@ -15,13 +15,20 @@ const safeNext = (n: unknown) => {
 };
 
 export async function signIn(_: unknown, formData: FormData): Promise<ActionResult> {
+  if (!isSupabaseConfigured) return fail("Accounts are not available yet: the site is not connected to its database. (Administrator: open /api/health for details.)");
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fail("Please check the highlighted fields.", zodFieldErrors(parsed.error.issues));
   if (!(await rateLimit(`login:${await clientKey()}`, 10, 900)) || !(await rateLimit(`login-email:${parsed.data.email}`, 8, 900))) {
     return fail("Too many sign-in attempts. Please wait 15 minutes and try again.");
   }
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  let error: { message: string } | null = null;
+  try {
+    ({ error } = await supabase.auth.signInWithPassword(parsed.data));
+  } catch (e) {
+    console.error("[signIn]", e);
+    return fail("Sign-in is temporarily unavailable. Please try again in a few minutes.");
+  }
   if (error) {
     if (/confirm/i.test(error.message)) return fail("Please confirm your email address first — check your inbox for the verification link.");
     return fail("Incorrect email or password.");
@@ -30,13 +37,16 @@ export async function signIn(_: unknown, formData: FormData): Promise<ActionResu
 }
 
 export async function signUp(_: unknown, formData: FormData): Promise<ActionResult> {
+  if (!isSupabaseConfigured) return fail("Accounts are not available yet: the site is not connected to its database. (Administrator: open /api/health for details.)");
   const raw = Object.fromEntries(formData);
   const parsed = registerSchema.safeParse({ ...raw, terms: raw.terms === "on", marketing: raw.marketing === "on" });
   if (!parsed.success) return fail("Please check the highlighted fields.", zodFieldErrors(parsed.error.issues));
   if (!(await rateLimit(`signup:${await clientKey()}`, 5, 3600))) return fail("Too many sign-up attempts. Please try again later.");
   const d = parsed.data;
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
+  let result: Awaited<ReturnType<typeof supabase.auth.signUp>>;
+  try {
+    result = await supabase.auth.signUp({
     email: d.email,
     password: d.password,
     options: {
@@ -45,9 +55,16 @@ export async function signUp(_: unknown, formData: FormData): Promise<ActionResu
       data: { first_name: d.firstName, last_name: d.lastName, marketing_consent: !!d.marketing },
     },
   });
+  } catch (e) {
+    console.error("[signUp]", e);
+    return fail("Registration is temporarily unavailable. Please try again in a few minutes.");
+  }
+  const { data, error } = result;
   if (error) {
     if (/already/i.test(error.message)) return fail("An account with this email already exists. Try signing in.");
     if (/password/i.test(error.message)) return fail(error.message);
+    if (/rate limit|too many/i.test(error.message)) return fail("Too many sign-up emails have been sent recently. Please try again in an hour.");
+    console.error("[signUp]", error.message);
     return fail("We couldn't create your account. Please try again.");
   }
   if (data.user) {
@@ -66,6 +83,7 @@ export async function signUp(_: unknown, formData: FormData): Promise<ActionResu
 }
 
 export async function requestPasswordReset(_: unknown, formData: FormData): Promise<ActionResult> {
+  if (!isSupabaseConfigured) return fail("Accounts are not available yet: the site is not connected to its database. (Administrator: open /api/health for details.)");
   const email = emailSchema.safeParse(formData.get("email"));
   if (!email.success) return fail("Enter a valid email address.", { email: "Enter a valid email address" });
   if (!(await rateLimit(`reset:${await clientKey()}`, 5, 3600))) return fail("Too many requests. Please try again later.");
