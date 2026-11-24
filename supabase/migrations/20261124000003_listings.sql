@@ -120,8 +120,10 @@ begin
   end if;
 
   -- 3. Approvals can only be given by the right party.
+  -- Meridian-managed stock (no seller account / dealership) is approved by sales staff on the owner's written authority.
   if new.seller_approved_at is distinct from old.seller_approved_at and new.seller_approved_at is not null
-     and not (v_is_owner or v_is_service) then
+     and not (v_is_owner or v_is_service
+              or (v_is_approver and exists (select 1 from public.vehicles x where x.id = new.vehicle_id and x.owner_id is null and x.dealership_id is null))) then
     raise exception 'Only the seller can approve their listing' using errcode = '42501';
   end if;
   if new.admin_approved_at is distinct from old.admin_approved_at and new.admin_approved_at is not null
