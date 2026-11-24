@@ -12,7 +12,7 @@ import { formatPrice } from "@/lib/format";
 export const metadata = { title: "Analytics" };
 
 const METRICS: [string, string, "count" | "gbp" | "usd"][] = [
-  ["listing_views", "Listing views", "count"], ["searches", "Search impressions", "count"], ["saves", "Vehicles saved", "count"], ["enquiries", "Enquiries", "count"],
+  ["listing_views", "Listing views", "count"], ["saves", "Vehicles saved", "count"], ["enquiries", "Enquiries", "count"],
   ["new_listings", "New listings published", "count"], ["completed_sales", "Completed sales", "count"], ["revenue", "Revenue received (£)", "gbp"], ["registrations", "New registrations", "count"], ["ai_cost", "AI cost (US$, estimated)", "usd"],
 ];
 

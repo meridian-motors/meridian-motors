@@ -3,7 +3,7 @@ import { getSession, isStaffRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { toCsv } from "@/lib/imports/parse";
 
-const METRICS = ["listing_views", "searches", "saves", "enquiries", "new_listings", "completed_sales", "revenue", "registrations", "ai_cost"];
+const METRICS = ["listing_views", "saves", "enquiries", "new_listings", "completed_sales", "revenue", "registrations", "ai_cost"];
 
 /** CSV export of daily recorded metrics (staff only). */
 export async function GET(req: NextRequest) {
