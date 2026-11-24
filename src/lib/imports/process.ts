@@ -8,11 +8,13 @@ type Admin = ReturnType<typeof createAdminClient>;
 /** Map + validate + duplicate-check every row of a job (no vehicles are created here). */
 export async function previewJob(admin: Admin, jobId: string, mapping: Partial<Record<ImportField, string>>) {
   const rows: { id: string; row_number: number; raw_data: Record<string, unknown> }[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data } = await admin.from("import_rows").select("id, row_number, raw_data").eq("import_job_id", jobId).order("row_number").range(from, from + 999);
+  // Page through all rows; the API may cap each response (Supabase default: 1000 rows).
+  for (let from = 0; ; ) {
+    const { data, error } = await admin.from("import_rows").select("id, row_number, raw_data").eq("import_job_id", jobId).order("row_number").range(from, from + 999);
+    if (error) throw new Error(error.message);
     if (!data?.length) break;
     rows.push(...(data as typeof rows));
-    if (data.length < 1000) break;
+    from += data.length;
   }
   const mapped = rows.map((r) => ({ ...mapRow(r.raw_data, mapping), rowNumber: r.row_number, raw: r.raw_data, id: r.id }));
   const regs = [...new Set(mapped.map((m) => m.data.registration_number).filter(Boolean))] as string[];
@@ -53,9 +55,10 @@ export async function processBatch(admin: Admin, jobId: string, batchSize = 50) 
   const { data: rows, error } = await admin.rpc("claim_import_rows", { p_job: jobId, p_limit: batchSize });
   if (error) throw new Error(error.message);
   let imported = 0, failed = 0;
-  for (const row of (rows ?? []) as { id: string; mapped_data: MappedVehicle; attempts: number }[]) {
-    const d = row.mapped_data;
+  for (const row of (rows ?? []) as { id: string; mapped_data: MappedVehicle | null; attempts: number }[]) {
+    const d = row.mapped_data as MappedVehicle;
     try {
+      if (!row.mapped_data) throw new Error("Row has not been validated");
       const { data: v, error: vErr } = await admin.from("vehicles").insert({
         source: "import", import_job_id: jobId, created_by: job.uploaded_by, vehicle_status: "draft", submission_step: 8,
         registration_number: d.registration_number, vin: d.vin, make: d.make, model: d.model, derivative: d.derivative, year: d.year, mileage: d.mileage,

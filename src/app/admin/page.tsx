@@ -35,7 +35,7 @@ export default async function AdminOverview({ searchParams }: { searchParams: Pr
       <PageHeader eyebrow="Meridian operations" title="Overview" description="Actual recorded platform data. Estimates are labelled separately."
         actions={<div className="flex rounded-[var(--radius-sm)] border border-line bg-white p-0.5">{[7, 30, 90, 365].map((d) => (
           <Link key={d} href={`/admin?days=${d}`} className={`rounded-[3px] px-3 py-1.5 text-[12.5px] ${d === days ? "bg-ink text-white" : "text-slate hover:text-ink"}`}>{d === 365 ? "12m" : `${d}d`}</Link>))}</div>} />
-      {missing.length ? <Alert tone="warning" className="mb-6" title="Integrations awaiting configuration">{missing.join(", ").replace("supabase_admin", "Supabase service role")} — these features show an unavailable state until credentials are added. See Settings.</Alert> : null}
+      {missing.length ? <Alert tone="warning" className="mb-6" title="Integrations awaiting configuration">{missing.map((m) => ({ supabase_admin: "Supabase service role", ai: "Claude API", stripe: "Stripe", email: "Resend email", dvla: "DVLA lookup" })[m] ?? m).join(", ")} — these features show an unavailable state until credentials are added. See Settings.</Alert> : null}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard label="Registered users" value={formatNumber(s.total_users)} icon={<Users />} hint={`${formatNumber(s.new_users)} new · ${formatNumber(s.total_sellers)} sellers · ${formatNumber(s.total_buyers)} buyers`} />
         <StatCard label="Active listings" value={formatNumber(s.active_listings)} icon={<Car />} hint={`${formatNumber(s.total_vehicles)} vehicles in total`} />

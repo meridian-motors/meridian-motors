@@ -64,7 +64,7 @@ create table public.import_rows (
   validation_errors text[] not null default '{}',
   is_duplicate boolean not null default false,
   duplicate_of uuid,
-  selected boolean not null default true,
+  selected boolean not null default false, -- only valid rows are selected, after preview
   processing_status text not null default 'pending' check (processing_status in ('pending', 'invalid', 'skipped', 'processing', 'imported', 'failed', 'duplicate')),
   vehicle_id uuid references public.vehicles (id) on delete set null,
   attempts smallint not null default 0,

@@ -12,12 +12,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!isSupabaseConfigured) return pages;
   // Anonymous client: the sitemap can only ever contain public, published listings.
   const supabase = createClient(publicEnv.supabaseUrl, publicEnv.supabaseAnonKey, { auth: { persistSession: false } });
-  const { data } = await supabase.from("public_listings").select("slug, published_at, make, model").order("published_at", { ascending: false }).limit(45000);
+  const data: { slug: string; published_at: string; make: string; model: string }[] = [];
+  for (let from = 0; from < 45000; ) {
+    const { data: page } = await supabase.from("public_listings").select("slug, published_at, make, model").order("published_at", { ascending: false }).range(from, from + 999);
+    if (!page?.length) break;
+    data.push(...page);
+    from += page.length;
+  }
   const models = new Map<string, string>();
-  (data ?? []).forEach((l) => models.set(`${l.make}|${l.model}`, l.published_at));
+  data.forEach((l) => models.set(`${l.make}|${l.model}`, l.published_at));
   return [
     ...pages,
     ...[...models.keys()].map((k) => { const [make, model] = k.split("|"); return { url: `${base}/cars?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`, changeFrequency: "daily" as const, priority: 0.7 }; }),
-    ...(data ?? []).map((l) => ({ url: `${base}/cars/${l.slug}`, lastModified: l.published_at, changeFrequency: "daily" as const, priority: 0.8 })),
+    ...data.map((l) => ({ url: `${base}/cars/${l.slug}`, lastModified: l.published_at, changeFrequency: "daily" as const, priority: 0.8 })),
   ];
 }
