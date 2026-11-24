@@ -14,7 +14,7 @@ end $$;
 
 -- Owner-side helpers --------------------------------------------------------
 create or replace function public.can_manage_vehicle(p_vehicle uuid)
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select public.is_staff() or public.is_vehicle_owner(p_vehicle);
 $$;
 

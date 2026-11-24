@@ -105,8 +105,8 @@ create table public.vehicles (
 create index vehicles_owner_idx on public.vehicles (owner_id);
 create index vehicles_status_idx on public.vehicles (vehicle_status) where deleted_at is null;
 create index vehicles_make_model_idx on public.vehicles (lower(make), lower(model));
-create index vehicles_make_trgm_idx on public.vehicles using gin (make gin_trgm_ops);
-create index vehicles_model_trgm_idx on public.vehicles using gin (model gin_trgm_ops);
+create index vehicles_make_trgm_idx on public.vehicles using gin (make extensions.gin_trgm_ops);
+create index vehicles_model_trgm_idx on public.vehicles using gin (model extensions.gin_trgm_ops);
 create index vehicles_year_idx on public.vehicles (year);
 create index vehicles_mileage_idx on public.vehicles (mileage);
 create index vehicles_location_idx on public.vehicles (postcode_district);
@@ -144,7 +144,7 @@ create trigger vehicles_normalise before insert or update on public.vehicles
   for each row execute function public.normalise_vehicle();
 
 create or replace function public.is_vehicle_owner(p_vehicle uuid)
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select exists (
     select 1 from public.vehicles v
     join public.sellers s on s.id = v.owner_id
@@ -349,7 +349,7 @@ create or replace function public.transition_vehicle_status(
   p_reason text default null,
   p_internal_notes text default null
 ) returns public.vehicles
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_vehicle public.vehicles;
   v_actor text;
@@ -443,7 +443,7 @@ end $$;
 -- Guard: vehicle_status may only change through transition_vehicle_status().
 -- Owners may only edit content while the vehicle is in an editable stage.
 create or replace function public.guard_vehicle_update()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   if new.vehicle_status is distinct from old.vehicle_status
      and coalesce(current_setting('meridian.status_transition', true), 'off') <> 'on' then
@@ -478,7 +478,7 @@ create trigger vehicles_guard_update before update on public.vehicles
 
 -- New vehicles always start as draft unless inserted by staff/service.
 create or replace function public.guard_vehicle_insert()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   new.created_by := coalesce(new.created_by, auth.uid());
   if public.is_service_role() or public.is_staff() then
@@ -511,7 +511,7 @@ create trigger vehicles_prevent_hard_delete before delete on public.vehicles
 
 -- Verifications can only be set to verified by staff.
 create or replace function public.guard_verification()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not (public.is_service_role() or public.has_staff_role(array['verification_operator']::public.app_role[])) then
     raise exception 'Only verification operators can record verifications' using errcode = '42501';

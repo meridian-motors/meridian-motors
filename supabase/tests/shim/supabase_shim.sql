@@ -7,7 +7,9 @@ create role service_role nologin noinherit bypassrls;
 create schema auth;
 create schema storage;
 create schema extensions;
-grant usage on schema auth, storage, public to anon, authenticated, service_role;
+alter database postgres set search_path = public, extensions;
+set search_path = public, extensions;
+grant usage on schema auth, storage, public, extensions to anon, authenticated, service_role;
 
 create table auth.users (
   id uuid primary key,

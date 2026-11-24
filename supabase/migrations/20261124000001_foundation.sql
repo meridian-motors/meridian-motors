@@ -4,9 +4,9 @@
 -- All timestamps are timestamptz (stored in UTC).
 -- =============================================================================
 
-create extension if not exists pgcrypto;
-create extension if not exists pg_trgm;
-create extension if not exists citext;
+create extension if not exists pgcrypto with schema extensions;
+create extension if not exists pg_trgm with schema extensions;
+create extension if not exists citext with schema extensions;
 
 -- -----------------------------------------------------------------------------
 -- Enumerations
@@ -76,29 +76,29 @@ create trigger profiles_updated_at before update on public.profiles
 -- Role helpers. SECURITY DEFINER so they can be used inside RLS policies
 -- without recursive policy evaluation on `profiles`.
 create or replace function public.current_app_role()
-returns public.app_role language sql stable security definer set search_path = public as $$
+returns public.app_role language sql stable security definer set search_path = public, extensions as $$
   select role from public.profiles
   where id = auth.uid() and account_status = 'active';
 $$;
 
 create or replace function public.is_staff()
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select coalesce(public.current_app_role() in
     ('verification_operator', 'sales_operator', 'admin', 'super_admin'), false);
 $$;
 
 create or replace function public.is_admin()
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select coalesce(public.current_app_role() in ('admin', 'super_admin'), false);
 $$;
 
 create or replace function public.is_super_admin()
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select coalesce(public.current_app_role() = 'super_admin', false);
 $$;
 
 create or replace function public.has_staff_role(roles public.app_role[])
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select coalesce(public.current_app_role() = any (roles || array['admin','super_admin']::public.app_role[]), false);
 $$;
 
@@ -106,7 +106,7 @@ $$;
 -- account status. Only admins may change roles, and only super admins may
 -- grant or revoke admin/super_admin.
 create or replace function public.guard_profile_privileges()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   if public.is_service_role() then
     return new;
@@ -148,7 +148,7 @@ create trigger profiles_guard_privileges before update on public.profiles
 -- Create a profile automatically when a Supabase auth user is created.
 -- Role is ALWAYS 'customer' regardless of any user-supplied metadata.
 create or replace function public.handle_new_auth_user()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   insert into public.profiles (id, email, first_name, last_name, marketing_consent, marketing_consent_at)
   values (
@@ -201,18 +201,18 @@ create trigger buyers_updated_at before update on public.buyers
   for each row execute function public.set_updated_at();
 
 create or replace function public.current_seller_id()
-returns uuid language sql stable security definer set search_path = public as $$
+returns uuid language sql stable security definer set search_path = public, extensions as $$
   select id from public.sellers where profile_id = auth.uid();
 $$;
 
 create or replace function public.current_buyer_id()
-returns uuid language sql stable security definer set search_path = public as $$
+returns uuid language sql stable security definer set search_path = public, extensions as $$
   select id from public.buyers where profile_id = auth.uid();
 $$;
 
 -- Create (idempotently) the seller / buyer capability for the signed-in user.
 create or replace function public.ensure_seller()
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare v_id uuid;
 begin
   if auth.uid() is null then raise exception 'Authentication required' using errcode = '42501'; end if;
@@ -223,7 +223,7 @@ begin
 end $$;
 
 create or replace function public.ensure_buyer()
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare v_id uuid;
 begin
   if auth.uid() is null then raise exception 'Authentication required' using errcode = '42501'; end if;
@@ -235,7 +235,7 @@ end $$;
 
 -- Sellers cannot verify themselves.
 create or replace function public.guard_seller_verification()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   if public.is_service_role() or public.is_staff() then return new; end if;
   if tg_op = 'INSERT' then
@@ -275,7 +275,7 @@ create table public.dealership_members (
 );
 
 create or replace function public.is_dealership_member(p_dealership uuid, p_owner_only boolean default false)
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select exists (
     select 1 from public.dealership_members
     where dealership_id = p_dealership and profile_id = auth.uid()
@@ -299,7 +299,7 @@ create trigger platform_settings_updated_at before update on public.platform_set
   for each row execute function public.set_updated_at();
 
 create or replace function public.get_setting(p_key text)
-returns jsonb language sql stable security definer set search_path = public as $$
+returns jsonb language sql stable security definer set search_path = public, extensions as $$
   select setting_value from public.platform_settings where setting_key = p_key;
 $$;
 

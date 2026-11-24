@@ -80,7 +80,7 @@ create unique index vehicles_import_row_uniq on public.vehicles ((submission_dat
 
 -- Atomically claim a batch of rows for processing (safe under concurrent workers).
 create or replace function public.claim_import_rows(p_job uuid, p_limit integer default 50)
-returns setof public.import_rows language plpgsql security definer set search_path = public as $$
+returns setof public.import_rows language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not (public.is_service_role() or public.is_admin()) then
     raise exception 'Not permitted' using errcode = '42501';
@@ -122,14 +122,14 @@ create table public.notification_preferences (
   email_buyer_matches boolean not null default false,
   email_saved_search_alerts boolean not null default false,
   email_marketing boolean not null default false,
-  unsubscribe_token text not null unique default encode(gen_random_bytes(24), 'hex'),
+  unsubscribe_token text not null unique default encode(extensions.gen_random_bytes(24), 'hex'),
   updated_at timestamptz not null default now()
 );
 create trigger notification_preferences_updated_at before update on public.notification_preferences
   for each row execute function public.set_updated_at();
 
 create or replace function public.create_notification_preferences()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   insert into public.notification_preferences (profile_id, email_marketing)
   values (new.id, new.marketing_consent) on conflict do nothing;
@@ -140,7 +140,7 @@ create trigger profiles_create_notification_preferences after insert on public.p
 
 -- Server-side helper used by database functions
 create or replace function public.notify(p_profile uuid, p_type text, p_title text, p_message text, p_link text default null)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare v_id uuid;
 begin
   if p_profile is null then return null; end if;
@@ -179,7 +179,7 @@ create trigger audit_logs_immutable before update or delete on public.audit_logs
 
 -- Generic row audit trigger
 create or replace function public.audit_row_change()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_old jsonb := case when tg_op in ('UPDATE', 'DELETE') then to_jsonb(old) end;
   v_new jsonb := case when tg_op in ('INSERT', 'UPDATE') then to_jsonb(new) end;
@@ -222,7 +222,7 @@ create trigger audit_documents after insert or delete on public.vehicle_document
 
 -- Application-level audit entries (e.g. admin views of private documents)
 create or replace function public.log_audit(p_action text, p_entity_type text, p_entity_id uuid, p_details jsonb default null)
-returns void language plpgsql security definer set search_path = public as $$
+returns void language plpgsql security definer set search_path = public, extensions as $$
 begin
   if auth.uid() is null and not public.is_service_role() then
     raise exception 'Authentication required' using errcode = '42501';
@@ -242,7 +242,7 @@ create table public.rate_limits (
 );
 
 create or replace function public.check_rate_limit(p_bucket text, p_limit integer, p_window_seconds integer)
-returns boolean language plpgsql security definer set search_path = public as $$
+returns boolean language plpgsql security definer set search_path = public, extensions as $$
 declare v_window timestamptz := to_timestamp(floor(extract(epoch from now()) / p_window_seconds) * p_window_seconds);
         v_hits integer;
 begin

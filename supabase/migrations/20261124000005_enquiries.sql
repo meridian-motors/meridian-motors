@@ -45,7 +45,7 @@ create table public.enquiry_contacts (
 );
 
 create or replace function public.can_access_enquiry(p_enquiry uuid)
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select public.is_staff() or exists (
     select 1 from public.enquiries e
     where e.id = p_enquiry
@@ -57,7 +57,7 @@ $$;
 -- Sellers may only update the status of their own enquiries within a safe set;
 -- assignment, priority and AI fields are staff-only.
 create or replace function public.guard_enquiry_update()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   if public.is_service_role() or public.is_staff() then return new; end if;
   if new.listing_id is distinct from old.listing_id or new.vehicle_id is distinct from old.vehicle_id
@@ -96,7 +96,7 @@ create table public.messages (
 create index messages_conversation_idx on public.messages (conversation_id, created_at);
 
 create or replace function public.prepare_message()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare v_enquiry public.enquiries;
 begin
   select e.* into v_enquiry from public.enquiries e join public.conversations c on c.enquiry_id = e.id
@@ -122,7 +122,7 @@ create trigger messages_prepare before insert on public.messages
   for each row execute function public.prepare_message();
 
 create or replace function public.touch_conversation()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   update public.conversations set last_message_at = new.created_at where id = new.conversation_id;
   return new;

@@ -64,7 +64,7 @@ create table public.data_providers (
 -- Anti-fabrication: Meridian-sourced comparables must reference a real record;
 -- licensed comparables must come from an enabled, licensed provider.
 create or replace function public.validate_comparable()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare v_provider text;
 begin
   if new.source_provider = 'meridian_completed_sale' then
@@ -95,7 +95,7 @@ create trigger comparable_vehicles_validate before insert or update on public.co
 
 -- A valuation can only be completed when enough real comparables are attached.
 create or replace function public.guard_valuation_completion()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare v_min integer := coalesce((public.get_setting('pricing.min_comparables'))::int, 3);
         v_count integer;
 begin
@@ -114,7 +114,7 @@ create trigger valuations_completion_guard before insert or update on public.val
 
 -- Only one current valuation per vehicle: completing a new one supersedes older ones.
 create or replace function public.supersede_old_valuations()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   if new.valuation_status in ('completed', 'insufficient_data') then
     update public.valuations set valuation_status = 'superseded'
@@ -145,7 +145,7 @@ create table public.price_recommendations (
 create index price_recommendations_vehicle_idx on public.price_recommendations (vehicle_id, created_at desc);
 
 create or replace function public.guard_price_recommendation()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   if tg_op = 'INSERT' then
     if not (public.is_service_role() or public.is_staff() or public.is_vehicle_owner(new.vehicle_id)) then
@@ -188,7 +188,7 @@ create table public.price_history (
 create index price_history_vehicle_idx on public.price_history (vehicle_id, created_at desc);
 
 create or replace function public.record_price_history()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare v_rec uuid;
 begin
   if new.asking_price is not null and (tg_op = 'INSERT' or new.asking_price is distinct from old.asking_price) then
@@ -208,7 +208,7 @@ create trigger listings_price_history after insert or update of asking_price on 
 
 -- Seller sets their asking price (with reason) — the authorised path.
 create or replace function public.set_asking_price(p_listing uuid, p_price integer, p_reason text default null)
-returns public.listings language plpgsql security definer set search_path = public as $$
+returns public.listings language plpgsql security definer set search_path = public, extensions as $$
 declare v_listing public.listings;
 begin
   if not (public.is_listing_owner(p_listing) or public.has_staff_role(array['sales_operator']::public.app_role[])) then
@@ -223,7 +223,7 @@ end $$;
 
 -- Seller decision on a recommendation; when accepted, optionally applies it.
 create or replace function public.decide_price_recommendation(p_recommendation uuid, p_accept boolean, p_apply boolean default true)
-returns public.price_recommendations language plpgsql security definer set search_path = public as $$
+returns public.price_recommendations language plpgsql security definer set search_path = public, extensions as $$
 declare v_rec public.price_recommendations;
 begin
   select * into v_rec from public.price_recommendations where id = p_recommendation for update;

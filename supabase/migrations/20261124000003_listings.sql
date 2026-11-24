@@ -49,20 +49,20 @@ create trigger listings_updated_at before update on public.listings
   for each row execute function public.set_updated_at();
 
 create or replace function public.is_listing_owner(p_listing uuid)
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public, extensions as $$
   select exists (select 1 from public.listings l where l.id = p_listing and public.is_vehicle_owner(l.vehicle_id));
 $$;
 
 -- Generate a clean slug: make-model-year-<6 hex>
 create or replace function public.generate_listing_slug(p_vehicle uuid)
-returns text language sql volatile set search_path = public as $$
+returns text language sql volatile set search_path = public, extensions as $$
   select trim(both '-' from regexp_replace(lower(coalesce(v.make, 'vehicle') || '-' || coalesce(v.model, '') || '-' || coalesce(v.year::text, '')),
-               '[^a-z0-9]+', '-', 'g')) || '-' || substr(encode(gen_random_bytes(4), 'hex'), 1, 6)
+               '[^a-z0-9]+', '-', 'g')) || '-' || substr(encode(extensions.gen_random_bytes(4), 'hex'), 1, 6)
   from public.vehicles v where v.id = p_vehicle;
 $$;
 
 create or replace function public.listing_defaults()
-returns trigger language plpgsql set search_path = public as $$
+returns trigger language plpgsql set search_path = public, extensions as $$
 begin
   if new.slug is null or new.slug = '' then
     new.slug := public.generate_listing_slug(new.vehicle_id);
@@ -74,7 +74,7 @@ create trigger listings_defaults before insert on public.listings
 
 -- Core listing guard: approvals, price authorisation, publication rules.
 create or replace function public.guard_listing()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_min integer;
   v_desired integer;
@@ -213,7 +213,7 @@ create index listing_content_drafts_listing_idx on public.listing_content_drafts
 -- Approving a draft copies it into the listing. The seller (owner) or a
 -- sales operator/admin may approve. Never publishes by itself.
 create or replace function public.approve_listing_draft(p_draft uuid)
-returns public.listings language plpgsql security definer set search_path = public as $$
+returns public.listings language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_draft public.listing_content_drafts;
   v_listing public.listings;
@@ -249,7 +249,7 @@ begin
 end $$;
 
 create or replace function public.reject_listing_draft(p_draft uuid)
-returns void language plpgsql security definer set search_path = public as $$
+returns void language plpgsql security definer set search_path = public, extensions as $$
 declare v_listing uuid;
 begin
   select listing_id into v_listing from public.listing_content_drafts where id = p_draft and draft_status = 'pending';
@@ -262,7 +262,7 @@ end $$;
 
 -- Seller approves the listing (content + price) for publication.
 create or replace function public.seller_approve_listing(p_listing uuid)
-returns public.listings language plpgsql security definer set search_path = public as $$
+returns public.listings language plpgsql security definer set search_path = public, extensions as $$
 declare v_listing public.listings;
 begin
   if not public.is_listing_owner(p_listing) then
@@ -280,7 +280,7 @@ end $$;
 
 -- Admin approval / rejection / information request.
 create or replace function public.admin_review_listing(p_listing uuid, p_decision text, p_message text default null)
-returns public.listings language plpgsql security definer set search_path = public as $$
+returns public.listings language plpgsql security definer set search_path = public, extensions as $$
 declare v_listing public.listings;
 begin
   if not public.has_staff_role(array['sales_operator']::public.app_role[]) then
@@ -324,7 +324,7 @@ create unique index listing_events_view_dedupe on public.listing_events (listing
   where event_type = 'view' and session_hash is not null;
 
 create or replace function public.record_listing_event(p_listing uuid, p_event public.listing_event_type, p_session_hash text default null, p_metadata jsonb default '{}')
-returns void language plpgsql security definer set search_path = public as $$
+returns void language plpgsql security definer set search_path = public, extensions as $$
 declare v_inserted integer;
 begin
   if p_event not in ('view', 'share', 'gallery_open', 'search_impression') then
@@ -380,7 +380,7 @@ create table public.saved_vehicles (
 create index saved_vehicles_vehicle_idx on public.saved_vehicles (vehicle_id);
 
 create or replace function public.saved_vehicle_counter()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 begin
   if tg_op = 'INSERT' then
     update public.listings set save_count = save_count + 1 where vehicle_id = new.vehicle_id and deleted_at is null;
@@ -531,7 +531,7 @@ create or replace function public.search_listings(
   p_sort text default 'newest',
   p_limit integer default 24,
   p_offset integer default 0
-) returns jsonb language sql stable security invoker set search_path = public as $$
+) returns jsonb language sql stable security invoker set search_path = public, extensions as $$
   with q as (
     select case when coalesce(trim(p_query), '') = '' then null
                 else websearch_to_tsquery('english', p_query) end as tsq
@@ -587,7 +587,7 @@ grant execute on function public.search_listings to anon, authenticated;
 
 create or replace function public.listing_suggestions(p_prefix text)
 returns table (label text, make text, model text, listing_count bigint)
-language sql stable security invoker set search_path = public as $$
+language sql stable security invoker set search_path = public, extensions as $$
   select make || ' ' || model as label, make, model, count(*) as listing_count
   from public.public_listings
   where length(trim(coalesce(p_prefix, ''))) >= 1
@@ -599,7 +599,7 @@ $$;
 grant execute on function public.listing_suggestions to anon, authenticated;
 
 create or replace function public.marketplace_facets()
-returns jsonb language sql stable security invoker set search_path = public as $$
+returns jsonb language sql stable security invoker set search_path = public, extensions as $$
   select jsonb_build_object(
     'makes', coalesce((select jsonb_agg(jsonb_build_object('make', make, 'count', c) order by make)
                         from (select make, count(*) c from public.public_listings group by make) m), '[]'::jsonb),

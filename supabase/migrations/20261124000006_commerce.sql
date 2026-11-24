@@ -55,7 +55,7 @@ create trigger transactions_protect before update or delete on public.transactio
 
 -- Fee tier lookup (configurable via platform_settings 'fees.sale_fee_tiers').
 create or replace function public.calculate_sale_fee(p_price integer)
-returns integer language sql stable security definer set search_path = public as $$
+returns integer language sql stable security definer set search_path = public, extensions as $$
   select coalesce((
     select (t ->> 'fee')::int
     from jsonb_array_elements(public.get_setting('fees.sale_fee_tiers')) t
@@ -69,7 +69,7 @@ grant execute on function public.calculate_sale_fee to anon, authenticated;
 
 -- Seller reports a sale (subject to Meridian confirmation).
 create or replace function public.seller_report_sale(p_vehicle uuid, p_price integer, p_notes text default null)
-returns public.transactions language plpgsql security definer set search_path = public as $$
+returns public.transactions language plpgsql security definer set search_path = public, extensions as $$
 declare v_tx public.transactions; v_vehicle public.vehicles;
 begin
   if not public.is_vehicle_owner(p_vehicle) then
@@ -95,7 +95,7 @@ end $$;
 
 -- Staff confirm the sale is complete. The sale fee becomes payable at this point.
 create or replace function public.staff_complete_sale(p_transaction uuid)
-returns public.transactions language plpgsql security definer set search_path = public as $$
+returns public.transactions language plpgsql security definer set search_path = public, extensions as $$
 declare v_tx public.transactions; v_fee integer; v_profile uuid;
 begin
   if not public.has_staff_role(array['sales_operator']::public.app_role[]) then
@@ -173,7 +173,7 @@ create trigger service_orders_updated_at before update on public.service_orders
   for each row execute function public.set_updated_at();
 
 create or replace function public.guard_service_order()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare v_service public.service_catalog;
 begin
   if public.is_service_role() or public.is_staff() then return new; end if;

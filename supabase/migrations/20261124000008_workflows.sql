@@ -14,7 +14,7 @@ create or replace function public.submit_enquiry(
   p_phone text default null,
   p_offer integer default null,
   p_client_key text default null
-) returns uuid language plpgsql security definer set search_path = public as $$
+) returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_listing public.public_listings;
   v_vehicle public.vehicles;
@@ -81,7 +81,7 @@ grant execute on function public.submit_enquiry to anon, authenticated;
 -- -----------------------------------------------------------------------------
 create or replace function public.vehicle_timeline(p_vehicle uuid)
 returns table (previous_status public.vehicle_status, new_status public.vehicle_status, reason text, created_at timestamptz)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select h.previous_status, h.new_status, h.reason, h.created_at
   from public.vehicle_status_history h
   where h.vehicle_id = p_vehicle and (public.is_vehicle_owner(p_vehicle) or public.is_staff())
@@ -90,7 +90,7 @@ $$;
 
 create or replace function public.vehicle_verification_summary(p_vehicle uuid)
 returns table (verification_type public.verification_type, status public.verification_status, verified_at timestamptz, public_summary text)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, extensions as $$
   select v.verification_type, v.status, v.verified_at, v.public_summary
   from public.vehicle_verifications v
   where v.vehicle_id = p_vehicle and (public.is_vehicle_owner(p_vehicle) or public.is_staff());
@@ -100,7 +100,7 @@ $$;
 -- Seller dashboard statistics (real values only)
 -- -----------------------------------------------------------------------------
 create or replace function public.seller_dashboard_stats()
-returns jsonb language sql stable security definer set search_path = public as $$
+returns jsonb language sql stable security definer set search_path = public, extensions as $$
   with mine as (
     select v.* from public.vehicles v
     where v.owner_id = public.current_seller_id() and v.deleted_at is null
@@ -149,7 +149,7 @@ $$;
 -- Admin overview statistics (actual recorded data only)
 -- -----------------------------------------------------------------------------
 create or replace function public.admin_dashboard_stats(p_from timestamptz default now() - interval '30 days', p_to timestamptz default now())
-returns jsonb language plpgsql stable security definer set search_path = public as $$
+returns jsonb language plpgsql stable security definer set search_path = public, extensions as $$
 declare v jsonb;
 begin
   if not public.is_staff() then
@@ -202,7 +202,7 @@ end $$;
 
 -- Daily time series for analytics charts
 create or replace function public.admin_timeseries(p_metric text, p_from timestamptz, p_to timestamptz)
-returns table (day date, value numeric) language plpgsql stable security definer set search_path = public as $$
+returns table (day date, value numeric) language plpgsql stable security definer set search_path = public, extensions as $$
 begin
   if not public.is_staff() then raise exception 'Not permitted' using errcode = '42501'; end if;
   return query
@@ -226,7 +226,7 @@ end $$;
 
 -- Vehicles awaiting expiry
 create or replace function public.expire_listings()
-returns integer language plpgsql security definer set search_path = public as $$
+returns integer language plpgsql security definer set search_path = public, extensions as $$
 declare v_count integer;
 begin
   if not public.is_service_role() then raise exception 'Not permitted' using errcode = '42501'; end if;

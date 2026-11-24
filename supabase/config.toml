@@ -10,7 +10,7 @@ max_rows = 100
 
 [db]
 port = 54322
-major_version = 16
+major_version = 17
 
 [db.seed]
 # Demo data is NEVER loaded automatically. See supabase/seed/README.md.
@@ -24,7 +24,7 @@ jwt_expiry = 3600
 enable_signup = true
 
 [auth.email]
-enable_signup = true
+enabled = true
 enable_confirmations = true
 double_confirm_changes = true
 
