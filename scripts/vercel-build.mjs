@@ -22,7 +22,7 @@ if (!url) {
   // Supabase's server certificate chains to Supabase's own CA (not in Node's store).
   // Connection is still encrypted; this is a build-time, server-to-server connection.
   const conn = url.replace(/([?&])sslmode=[^&]*&?/, "$1").replace(/[?&]$/, "");
-  const client = new pg.Client({ connectionString: conn, ssl: { rejectUnauthorized: false }, statement_timeout: 120000 });
+  const client = new pg.Client({ connectionString: conn, ssl: /localhost|127\.0\.0\.1/.test(url) ? false : { rejectUnauthorized: false }, statement_timeout: 120000 });
   await client.connect();
   await client.query(`create schema if not exists supabase_migrations;
     create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text)`);
